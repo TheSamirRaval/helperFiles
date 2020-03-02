@@ -1,0 +1,81 @@
+    private CompositeDisposable disposable = new CompositeDisposable();
+    
+   @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        disposable.clear();
+       }
+
+///////////1///////////////
+  if (!AppUtils.isNetworkAvailableWithDialog(activity)) return;
+        DialogUtil.showProgressDialog(activity, getSupportFragmentManager());
+
+        MultipartBody.Builder builder = new MultipartBody.Builder();
+
+        builder.setType(MultipartBody.FORM);
+
+        String type = imageUri.isEmpty() ? "text" : "image";
+        String timestamp = String.valueOf((long) (System.currentTimeMillis() / 1000));
+        String messageText = "";
+
+        builder.addFormDataPart("action", Identifiers.ACTION_ADD_MESSAGE);
+        builder.addFormDataPart("token", SharedPrefs.getApiToken(activity));
+        builder.addFormDataPart("sender_id", order.getUserId().toString());
+        builder.addFormDataPart("receiver_id", order.getSpId().toString());
+        builder.addFormDataPart("order_id", order.getId().toString());
+        builder.addFormDataPart("type", type);
+        builder.addFormDataPart("timestamp", timestamp);
+
+
+        if (!imageUri.isEmpty()) {
+            messageText = "";
+            File file = new File(imageUri);
+            builder.addFormDataPart("photo", file.getName(), RequestBody.create(MediaType.parse("multipart/form-data"), file));
+        } else {
+            messageText = binding.etText.getText().toString().trim();
+            builder.addFormDataPart("text", binding.etText.getText().toString().trim());
+        }
+
+        MultipartBody requestBody = builder.build();
+
+
+      disposable.add(getApiService()
+                .addMessage(requestBody)
+                .compose(applySchedulers())
+                .subscribe(messageId -> {
+
+                    if (messageId.isSuccess()) {
+                        DialogUtil.dismissProgressDialog();
+
+                    } else {
+                        DialogUtil.dismissProgressDialog();
+                        Toast.makeText(activity, messageId.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                  
+
+                }, throwable -> {
+                    Toast.makeText(activity, R.string.fail, Toast.LENGTH_SHORT).show();
+                    throwable.printStackTrace();
+                    DialogUtil.dismissProgressDialog();
+                }));
+/////////////2///////////////////
+
+ DialogUtil.showProgressDialog(activity, getSupportFragmentManager());
+
+
+        disposable.add(getApiService()
+                .sentOTP(Identifiers.ACTION_SENT_OTP,
+                        COUNTRY_CODE + binding.etNum.getText().toString().trim())
+                .compose(applySchedulers())
+                .subscribe(otp -> {
+                    DialogUtil.dismissProgressDialog();
+                    if (otp.isSuccess()) {
+                        verificationId = otp.getId().toString();
+                        openOtpDialog();
+                    } else {
+                        Toast.makeText(activity, R.string.fail, Toast.LENGTH_SHORT).show();
+                    }
+                }, throwable -> {
+                    DialogUtil.dismissProgressDialog();
+                    Toast.makeText(activity, R.string.fail, Toast.LENGTH_SHORT).show();
+                }));
